@@ -2,7 +2,7 @@ import cv2
  
 vid = cv2.VideoCapture(0) # define a video capture object
  
-rgb_test= (20, 20 , 20 , 1) #RGB values to test against 
+rgb_test= (20, 20 , 20) #RGB values to test against 
 upper_left = (240, 180) #Region of intrest (x1, y1)
 bottom_right = (400, 300) #Region of intrest (x2, y2)
  
