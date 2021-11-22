@@ -2,7 +2,7 @@ import cv2
 import time
 from obswebsocket import obsws, requests 
  
-host = "localhost" #IP of compouter running OBS
+host = "localhost" #IP of computer running OBS
 port = 4444
 password = "password"
  
