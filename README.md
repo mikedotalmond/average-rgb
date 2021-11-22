@@ -22,8 +22,8 @@ The following instructions are to install OpenCV on a new installation of Raspbe
 
 Open a new terminal and enter:
 
-pip install opencv-python==4.5.3.56
+pip3 install --user opencv-python==4.5.3.56
 
 sudo apt-get install libatlas-base-dev
 
-pip install -U numpy
+pip3 install --user -U numpy
