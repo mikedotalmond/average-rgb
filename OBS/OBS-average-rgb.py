@@ -1,22 +1,22 @@
 import cv2 
-import time
+import datetime
 from obswebsocket import obsws, requests 
+import randomname
  
 host = "localhost" #IP of computer running OBS
 port = 4444
 password = "password"
  
 vid = cv2.VideoCapture(0) # define a video capture object
- 
+
 rgb_test= (15, 15, 15) #RGB values to test against 
-upper_left = (20, 20) #Region of intrest (x1, y1)(240, 180)
-bottom_right = (620, 460) #Region of intrest (x2, y2)(400, 300)
- 
-source_vis = False 
- 
+upper_left = (40, 40) #Region of intrest (x1, y1)(240, 180)
+bottom_right = (600, 440) #Region of intrest (x2, y2)(400, 300)
+
 ws = obsws(host, port, password)
 ws.connect()
- 
+source_vis = True 
+
 while(True): 
  
     ret, frame = vid.read() # Capture the video frame 
@@ -33,13 +33,25 @@ while(True):
             print("Change Source Vis to ON")
             ws.call(requests.SetSceneItemRender("bubble_image", True))
             source_vis = True
-        print("Do servo stuff here")
+            age = datetime.datetime.now() - born_dt
+            print (name + " Died " + datetime.datetime.now().strftime("%d.%m.%Y At %H:%M:%S"))
+            minutes = divmod(age.seconds, 60) 
+            if minutes[0] == 0:
+                print("Aged", minutes[1], 'seconds')
+            else:
+                print("Aged", minutes[0], 'minutes',minutes[1], 'seconds')
+            #print("Do servo stuff here")
     else:
         if source_vis:
             print("Change Source Vis to OFF")
             ws.call(requests.SetSceneItemRender("bubble_image", False))
             source_vis = False
-        print("Bubble still visible")
+            name = randomname.get_name()
+            name = name.replace("-", " ")
+            name = name.title()
+            born_dt = datetime.datetime.now()
+            print (name + " Born " + born_dt.strftime("%d.%m.%Y At %H:%M:%S"))
+            #print("Bubble still visible")
  
     if cv2.waitKey(1) & 0xFF == ord('q'): #Press q to quit 
  
