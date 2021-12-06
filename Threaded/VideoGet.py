@@ -1,4 +1,5 @@
 from threading import Thread
+import numpy as np
 import time
 import cv2
 
@@ -8,7 +9,11 @@ class VideoGet:
         self.stream = cv2.VideoCapture(src)
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.frame_count = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.frame_rate = float(self.stream.get(cv2.CAP_PROP_FPS))
         (self.grabbed, self.frame) = self.stream.read()
+
+        self.frame_delay = 1.0 /  self.frame_rate
         self.stopped = False
 
     def start(self):    
@@ -21,8 +26,8 @@ class VideoGet:
                 self.stop()
                 print("stopped")
             else:
-                (self.grabbed, self.frame) = self.stream.read()
-                time.sleep(0.01)
+                (self.grabbed, self.frame) = self.stream.read()        
+                time.sleep(self.frame_delay)
 
     def stop(self):
         self.stopped = True
