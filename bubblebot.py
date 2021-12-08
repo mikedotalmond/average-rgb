@@ -10,6 +10,7 @@ from Threaded.RgbTest import RgbTest
 from Threaded.LifeCycle import LifeCycle
 
 from dominant_colours import DominantColours
+from feature_tracking import FeatureTracking
 
 # quick OSC test...
 # from pythonosc import osc_message_builder
@@ -32,7 +33,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='BubbleBot configuration')
 parser.add_argument('-source', default=0, required=False, help="String location of video file to test with, or integer value of capture device to use.")
-parser.add_argument('-downscale-amount', type=int, default=8, required=False, help="Amount the media source is downscaled by before processing.")
+parser.add_argument('-downscale-amount', type=int, default=4, required=False, help="Amount the media source is downscaled by before processing.")
 parser.add_argument('-debug', type=str, default='yes', choices=['yes','no'], required=False)
 parser.add_argument('-display-output', type=str, default='yes', choices=['yes','no'], required=False)
 parser.add_argument('-fullscreen', type=str, default='no', choices=['yes','no'], required=False)
@@ -113,7 +114,8 @@ def thread_handler():
     # pop detection
     rgb_test = RgbTest(
         video_getter.frame, 
-        process_fps=8).start()
+        process_fps = 8
+    ).start()
     #
     bubble_life = LifeCycle()
 
@@ -121,9 +123,15 @@ def thread_handler():
     # dominant colours
     dominant_colours = DominantColours(
         clusters = 5, 
-        process_fps = 8, 
-        draw_chart = debug).start()
-    # TODO: calc motion vetors / optical flow (dev done but needs adding here)
+        process_fps = video_getter.frame_rate/4, 
+        draw_chart = debug
+    ).start()
+    # 
+    feature_tracking = FeatureTracking(
+        max_features = 13,
+        process_fps = video_getter.frame_rate,
+        debug_draw = debug
+    ).start()
 
     #
     #
@@ -147,11 +155,13 @@ def thread_handler():
         t1 = time.perf_counter()
 
         # break if stopped
-        if video_getter.stopped or dominant_colours.stopped or (video_shower is not None and video_shower.stopped):
-            if video_shower is not None: video_shower.stop()
+        if video_getter.stopped or dominant_colours.stopped or feature_tracking.stopped or (video_shower is not None and video_shower.stopped):
+            if video_shower is not None: 
+                video_shower.stop()
             video_getter.stop()
             rgb_test.stop()
             dominant_colours.stop()
+            feature_tracking.stop()
             break
         
         # if debug mode is set then we occasionally simulate bubble pop/create events.
@@ -173,12 +183,13 @@ def thread_handler():
         # if bubble_life.dead:
             # print("bubble death")
             # bubble_life.delay()
-        
+
+        cropped = frame[roi[1]:roi[3], roi[0]:roi[2]]
 
         # update data for dominant colour calculations
-        dominant_colours.set_frame(cv2.resize(frame, (h//16, w//16)))
-        # TODO: calc motion vetors / optical flow (dev done but needs adding here)
-
+        dominant_colours.set_frame(cv2.resize(cropped, (h//64, w//64)))
+        #
+        feature_tracking.set_frame(cropped)
 
 
         # show outputs for debugging
@@ -188,6 +199,7 @@ def thread_handler():
             # show dominant colours
             if dominant_colours.chart is not None:
                 cv2.imshow("dominant_colours", dominant_colours.chart)
+                # cv2.imshow("feature_tracking", feature_tracking.chart)
                 if cv2.waitKey(1) == ord("q"):
                     video_getter.stop()
     

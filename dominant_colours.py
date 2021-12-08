@@ -73,7 +73,7 @@ class DominantColours:
             time.sleep(sleep_time if sleep_time > 0 else 0)
 
 
-    def buildHistogram(self, width=256, height=32):
+    def buildHistogram(self, width=480, height=27):
         # labels form 0 to no. of clusters
         numLabels = np.arange(0, self.CLUSTERS + 1)
        
