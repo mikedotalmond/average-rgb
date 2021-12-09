@@ -17,15 +17,15 @@ class FeatureTracking:
     frame = None
     last_frame = None
 
-    def __init__(self, max_features=3, process_fps=30, debug_draw=False):
+    def __init__(self, max_features=8, process_fps=30, debug_draw=False):
         self.frame = None
-        self.max_features = max_features
+        self.max_features = 8
         self.update_delay = 1.0 / process_fps
         self.stopped = False
         self.debug_draw = debug_draw  
         self.debug_display=None
 
-        self.p0 = None #cv2.goodFeaturesToTrack(self.last_frame, mask = None, **self.feature_params)
+        self.p0 = None 
 
         # params for ShiTomasi corner detection
         self.feature_params = dict(
@@ -70,8 +70,9 @@ class FeatureTracking:
         self.features_time = self.last_time
         self.last_point_count = 0
 
-        self.new_feature_time_min = 1.0
-        self.new_feature_time_max = 6.0
+        # we periodically pick new features to track
+        self.new_feature_time_min = 3.0
+        self.new_feature_time_max = 9.0
         self.next_feature_time = self.get_next_feature_time()
 
         while not self.stopped:
@@ -86,14 +87,13 @@ class FeatureTracking:
             img = self.frame
             img_last = self.last_frame
             
-            # do stuff...
+            # pick new features to track
             if self.p0 is None or self.last_point_count == 0 or self.last_time - self.features_time > self.next_feature_time:
-                # print(f'last_point_count {self.last_point_count} - pick features')
                 self.p0 = cv2.goodFeaturesToTrack(img, mask = None, **self.feature_params)
                 self.next_feature_time = self.get_next_feature_time()
                 self.features_time = self.last_time
 
-            #
+            # perform optical flow
             if self.p0 is not None:
                 p1, st, _ = cv2.calcOpticalFlowPyrLK(img_last, img, self.p0, None, **self.lk_params)
                 # Select good points
@@ -105,28 +105,27 @@ class FeatureTracking:
                 # print(self.last_point_count)
 
             #
+            # update the previous points
+            self.p0 = good_new.reshape(-1,1,2)
+
+
+            # draw tracked features
             if self.debug_draw:
                 self.debug_display = np.zeros_like(img)
-                for i,(new,old) in enumerate(zip(good_new, good_old)):
+                for i,new in enumerate(good_new):
                     a,b = new.ravel()
-                    c,d = old.ravel()
-                    # debug_display = cv2.line(debug_display, (int(a),int(b)),(int(c),int(d)), 0, 2)
-                    self.debug_display = cv2.circle(self.debug_display, (int(a),int(b)), 3, 255, -1)
+                    self.debug_display = cv2.circle(self.debug_display, (int(a),int(b)), 2, 255, -1)
                 
                 cv2.imshow('feature_tracking', cv2.add(img, self.debug_display))
                 if cv2.waitKey(1) == ord("q"):
                     self.stopped = True      
         
-            #
-            # Now update the previous frame and previous points
-            # old_gray = frame_gray.copy()
-            self.p0 = good_new.reshape(-1,1,2)
     
             self.last_time = time.time()
             process_time = time.perf_counter() - t1
-            sleep_time = self.update_delay - process_time
-
             # print(f'feature tracking process_time {process_time}')
+
+            sleep_time = self.update_delay - process_time
             time.sleep(sleep_time if sleep_time > 0 else 0)
 
 

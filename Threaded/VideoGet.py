@@ -24,7 +24,6 @@ class VideoGet:
         while not self.stopped:
             if not self.grabbed:
                 self.stop()
-                print("stopped")
             else:
                 (self.grabbed, self.frame) = self.stream.read()        
                 time.sleep(self.frame_delay)

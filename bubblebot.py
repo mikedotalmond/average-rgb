@@ -11,29 +11,14 @@ from Threaded.LifeCycle import LifeCycle
 
 from dominant_colours import DominantColours
 from feature_tracking import FeatureTracking
-
-# quick OSC test...
-# from pythonosc import osc_message_builder
-# from pythonosc import udp_client
-# sender = udp_client.SimpleUDPClient('127.0.0.1', 4560)
-# sender.send_message('/trigger/test', [50, 100, 1])
-
-# required libs... 
-# scikit-learn
-# opencv-python
-# python-osc
-
-# 
-# example use:
-# python .\average-rgb\bubblebot.py -source 0 -debug yes -downscale-amount 8
-# python .\average-rgb\bubblebot.py -source ./raw/MVI_6151.MOV -downscale-amount 12 -debug yes
-
+from audio_driver import AudioDriver
 
 import argparse
 
 parser = argparse.ArgumentParser(description='BubbleBot configuration')
 parser.add_argument('-source', default=0, required=False, help="String location of video file to test with, or integer value of capture device to use.")
-parser.add_argument('-downscale-amount', type=int, default=4, required=False, help="Amount the media source is downscaled by before processing.")
+parser.add_argument('-downscale-amount', type=int, default=12, required=False, help="Amount the media source is downscaled by before processing.")
+
 parser.add_argument('-debug', type=str, default='yes', choices=['yes','no'], required=False)
 parser.add_argument('-display-output', type=str, default='yes', choices=['yes','no'], required=False)
 parser.add_argument('-fullscreen', type=str, default='no', choices=['yes','no'], required=False)
@@ -122,16 +107,18 @@ def thread_handler():
     #
     # dominant colours
     dominant_colours = DominantColours(
-        clusters = 5, 
-        process_fps = video_getter.frame_rate/4, 
+        clusters = 3, 
+        process_fps = 1, # video_getter.frame_rate/4, 
         draw_chart = debug
     ).start()
     # 
     feature_tracking = FeatureTracking(
-        max_features = 13,
+        max_features = 4,
         process_fps = video_getter.frame_rate,
         debug_draw = debug
     ).start()
+
+    soundtrack = AudioDriver()
 
     #
     #
@@ -166,11 +153,14 @@ def thread_handler():
         
         # if debug mode is set then we occasionally simulate bubble pop/create events.
         frame = get_frame(video_getter) if debug else video_getter.frame
+        if frame is None:
+            print("no frame data available")
+            exit(0)
 
         # downscale input for processing 
         if downscale_amount is not None:
             h, w, _ = frame.shape
-            frame = cv2.resize(frame, (w//downscale_amount, h//downscale_amount))
+            frame = cv2.resize(frame, (w//downscale_amount, h//downscale_amount),interpolation=cv2.INTER_AREA )
         
         # define region-of-interest for processing
         h, w, _ = frame.shape
@@ -187,10 +177,12 @@ def thread_handler():
         cropped = frame[roi[1]:roi[3], roi[0]:roi[2]]
 
         # update data for dominant colour calculations
-        dominant_colours.set_frame(cv2.resize(cropped, (h//64, w//64)))
+        dominant_colours.set_frame(cv2.resize(cropped, (16,9),interpolation=cv2.INTER_AREA ))
         #
         feature_tracking.set_frame(cropped)
 
+        # TODO: this
+        # soundtrack.update(popped=bubble_life.dead, dominant_colours=[], tracked_features=[])
 
         # show outputs for debugging
         if debug and display_output:
