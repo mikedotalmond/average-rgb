@@ -16,23 +16,39 @@ class FeatureTracking:
 
     frame = None
     last_frame = None
+    points = None
+    velocities = None
 
-    def __init__(self, max_features=8, process_fps=30, debug_draw=False):
+    def __init__(self, max_features=8, process_fps=30, debug=False, print_timings=False):
         self.frame = None
-        self.max_features = 8
+        self.max_features = max_features
         self.update_delay = 1.0 / process_fps
         self.stopped = False
-        self.debug_draw = debug_draw  
+        self.debug = debug  
+        self.print_timings = print_timings
         self.debug_display=None
+        self.points=[]
+        self.velocities=[]
 
-        self.p0 = None 
+        self.p0 = None
+
+    #
+    def init_frame(self, frame):
+
+        if self.debug:
+            self.debug_display = np.zeros_like(frame)
+
+        h, w = frame.shape
+
+        print("init frame")
+        print(w,h)
 
         # params for ShiTomasi corner detection
         self.feature_params = dict(
-            maxCorners = max_features,
-            qualityLevel = 0.3,
-            minDistance = 4,
-            blockSize = 7
+            maxCorners = self.max_features,
+            qualityLevel = 0.2,
+            minDistance = w//9,
+            blockSize = w//27
         )
         # Parameters for lucas kanade optical flow
         self.lk_params = dict(
@@ -41,6 +57,7 @@ class FeatureTracking:
             criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
         )
 
+        self.last_frame_time = 0
 
     #
     def start(self):
@@ -57,7 +74,7 @@ class FeatureTracking:
         f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if self.frame is None:
-            self.debug_display = np.zeros_like(f)
+            self.init_frame(f)
         else:
             self.last_frame = self.frame.copy()
         
@@ -82,16 +99,21 @@ class FeatureTracking:
                 continue
 
             t1 = time.perf_counter()
+            dt = t1 - self.last_frame_time
+            self.last_frame_time = t1
 
             #
             img = self.frame
             img_last = self.last_frame
             
+            new_features = False
             # pick new features to track
             if self.p0 is None or self.last_point_count == 0 or self.last_time - self.features_time > self.next_feature_time:
+                new_features = True
                 self.p0 = cv2.goodFeaturesToTrack(img, mask = None, **self.feature_params)
                 self.next_feature_time = self.get_next_feature_time()
                 self.features_time = self.last_time
+                
 
             # perform optical flow
             if self.p0 is not None:
@@ -100,37 +122,38 @@ class FeatureTracking:
                 if p1 is not None:
                     good_new = p1[st==1]
                     good_old = self.p0[st==1]
+                    
+                    if not new_features:
+                        self.points = good_new
+                        self.velocities = (good_new - good_old) / dt
 
-                self.last_point_count = len(good_new)
-                # print(self.last_point_count)
-
+                    self.last_point_count = len(good_new)
             #
             # update the previous points
             self.p0 = good_new.reshape(-1,1,2)
 
-
             # draw tracked features
-            if self.debug_draw:
+            if self.debug:
                 self.debug_display = np.zeros_like(img)
-                for i,new in enumerate(good_new):
+                for i,(new,old) in enumerate(zip(good_new, good_old)):
                     a,b = new.ravel()
+                    c,d = old.ravel()
                     self.debug_display = cv2.circle(self.debug_display, (int(a),int(b)), 2, 255, -1)
                 
                 cv2.imshow('feature_tracking', cv2.add(img, self.debug_display))
                 if cv2.waitKey(1) == ord("q"):
-                    self.stopped = True      
+                    self.stopped = True
         
     
             self.last_time = time.time()
             process_time = time.perf_counter() - t1
-            # print(f'feature tracking process_time {process_time}')
+            if self.print_timings:
+                print(f'feature_tracking process_time {process_time}')
 
             sleep_time = self.update_delay - process_time
             time.sleep(sleep_time if sleep_time > 0 else 0)
 
 
     def get_next_feature_time(self):
-        t = random.randint(self.new_feature_time_min, self.new_feature_time_max)
-        # print("next_feature_time:", t)
-        return t
+        return random.randint(self.new_feature_time_min, self.new_feature_time_max)
 

@@ -5,16 +5,20 @@ import cv2
 
 class VideoGet:
 
-    def __init__(self, src=0):
+    def __init__(self, src=0, width=1920,height=1080):
         self.stream = cv2.VideoCapture(src)
-        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        self.frame_count = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.frame_count = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT)) # 0 for live streams, an int for video files
         self.frame_rate = float(self.stream.get(cv2.CAP_PROP_FPS))
         (self.grabbed, self.frame) = self.stream.read()
 
-        self.frame_delay = 1.0 /  self.frame_rate
-        self.stopped = False
+        if self.grabbed and self.frame_rate > 0:
+            self.frame_delay = 1.0 /  self.frame_rate
+            self.stopped = False
+        else:
+            print(f'Unable to start VideoCapture for source:{src}')
+            self.stop()
 
     def start(self):    
         Thread(target=self.get, args=()).start()
@@ -30,3 +34,4 @@ class VideoGet:
 
     def stop(self):
         self.stopped = True
+        self.stream.release()
