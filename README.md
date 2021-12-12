@@ -27,5 +27,8 @@ pip3 install --user opencv-python==4.5.3.56
 sudo apt-get install libatlas-base-dev
 
 pip3 install --user -U numpy
+
 pip3 install --user -U scikit-learn
+
 pip3 install --user -U python-osc
+
