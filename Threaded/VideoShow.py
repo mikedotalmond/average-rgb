@@ -11,7 +11,9 @@ class VideoShow:
         self.frame_delay = 1.0 / framerate
 
     def start(self):
-        Thread(target=self.show, args=()).start()
+        t = Thread(target=self.show, args=())
+        t.daemon = True
+        t.start()
         return self
 
     def show(self):

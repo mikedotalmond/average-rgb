@@ -18,6 +18,7 @@ class FeatureTracking:
     last_frame = None
     points = None
     velocities = None
+    points_normalised=None
 
     def __init__(self, max_features=8, process_fps=30, debug=False, print_timings=False):
         self.frame = None
@@ -29,6 +30,11 @@ class FeatureTracking:
         self.debug_display=None
         self.points=[]
         self.velocities=[]
+        self.points_normalised=[]
+        self.width=1
+        self.height=1
+        self.half_width=0.5
+        self.half_height=0.5
 
         self.p0 = None
 
@@ -37,8 +43,12 @@ class FeatureTracking:
 
         if self.debug:
             self.debug_display = np.zeros_like(frame)
-
+        
         h, w = frame.shape
+        self.width=w
+        self.height=h
+        self.half_width=w/2.0
+        self.half_height=h/2.0
 
         print("init frame")
         print(w,h)
@@ -62,7 +72,9 @@ class FeatureTracking:
     #
     def start(self):
         self.stopped = False
-        Thread(target=self.process, args=()).start()
+        t = Thread(target=self.process, args=())
+        t.daemon = True
+        t.start()
         return self
         
     #
@@ -88,8 +100,8 @@ class FeatureTracking:
         self.last_point_count = 0
 
         # we periodically pick new features to track
-        self.new_feature_time_min = 3.0
-        self.new_feature_time_max = 9.0
+        self.new_feature_time_min = 1.0
+        self.new_feature_time_max = 5.0
         self.next_feature_time = self.get_next_feature_time()
 
         while not self.stopped:
@@ -106,7 +118,10 @@ class FeatureTracking:
             img = self.frame
             img_last = self.last_frame
             
+            good_new = None
+            good_old = None
             new_features = False
+
             # pick new features to track
             if self.p0 is None or self.last_point_count == 0 or self.last_time - self.features_time > self.next_feature_time:
                 new_features = True
@@ -124,32 +139,40 @@ class FeatureTracking:
                     good_old = self.p0[st==1]
                     
                     if not new_features:
+                        w2 = self.half_width
+                        h2 = self.half_height
+
                         self.points = good_new
-                        self.velocities = (good_new - good_old) / dt
+
+                        # distance moved / time - normalised
+                        self.velocities = ((good_new - good_old) / dt) / w2
+
+                        # remap points between -1/1 with 0,0 at the image centre
+                        self.points_normalised = [ ([pt[0] / w2 - 1.0, pt[1] / h2 - 1.0]) for pt in good_new ]
 
                     self.last_point_count = len(good_new)
             #
             # update the previous points
-            self.p0 = good_new.reshape(-1,1,2)
-
-            # draw tracked features
-            if self.debug:
-                self.debug_display = np.zeros_like(img)
-                for i,(new,old) in enumerate(zip(good_new, good_old)):
-                    a,b = new.ravel()
-                    c,d = old.ravel()
-                    self.debug_display = cv2.circle(self.debug_display, (int(a),int(b)), 2, 255, -1)
-                
-                cv2.imshow('feature_tracking', cv2.add(img, self.debug_display))
-                if cv2.waitKey(1) == ord("q"):
-                    self.stopped = True
-        
-    
+            if good_new is not None:
+                self.p0 = good_new.reshape(-1,1,2)
+          
+                # draw tracked features
+                if self.debug:
+                    self.debug_display = np.zeros_like(img)
+                    for i,(new,old) in enumerate(zip(good_new, good_old)):
+                        a,b = new.ravel()
+                        c,d = old.ravel()
+                        self.debug_display = cv2.circle(self.debug_display, (int(a),int(b)), 2, 255, -1)
+                    
+                    cv2.imshow('feature_tracking', cv2.add(img, self.debug_display))
+                    if cv2.waitKey(1) == ord("q"):
+                        self.stopped = True
+            
             self.last_time = time.time()
             process_time = time.perf_counter() - t1
             if self.print_timings:
                 print(f'feature_tracking process_time {process_time}')
-
+            
             sleep_time = self.update_delay - process_time
             time.sleep(sleep_time if sleep_time > 0 else 0)
 

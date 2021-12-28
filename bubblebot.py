@@ -40,8 +40,8 @@ args = parser.parse_args()
 
 # globals
 # simulate a bubble pop event by returning empty frames during development / debugging
-bubble_pop_duration = 2.0
-bubble_pop_chance = 0.001
+bubble_pop_duration = 4.0
+bubble_pop_chance = 0.000#5
 showing_empty_frame_time = -1.0
 showing_empty_frame = False
 empty_frame = np.zeros((1080, 1920, 3), np.uint8)
@@ -128,13 +128,14 @@ def thread_handler():
     ).start()
     # 
     feature_tracking = FeatureTracking(
-        max_features = 7,
-        process_fps = video_getter.frame_rate,
+        max_features = 9,
+        process_fps = video_getter.frame_rate/2,
         debug = debug,
         print_timings = print_timings
     ).start()
 
     soundtrack = AudioDriver()
+    # soundtrack = AudioDriver(osc_ip="192.168.1.118")
 
     #
     #
@@ -197,8 +198,8 @@ def thread_handler():
         # TODO: soundtrack...
         soundtrack.update(
             popped = bubble_life.dead, 
-            dominant_colours = {'colours':dominant_colours.colours, 'weights':dominant_colours.hist}, 
-            tracked_features = {'points':feature_tracking.points, 'velocities':feature_tracking.velocities}
+            dominant_colours = {'colours':dominant_colours.hsv, 'weights':dominant_colours.hist}, 
+            tracked_features = {'points':feature_tracking.points_normalised, 'velocities':feature_tracking.velocities}
         )
 
         # show outputs for debugging

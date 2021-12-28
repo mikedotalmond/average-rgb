@@ -17,7 +17,9 @@ class RgbTest:
 
     def start(self):
         self.stopped = False
-        Thread(target=self.show, args=()).start()
+        t = Thread(target=self.show, args=())
+        t.daemon = True
+        t.start()
         return self
 
     def show(self):

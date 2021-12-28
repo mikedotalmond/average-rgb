@@ -21,7 +21,9 @@ class VideoGet:
             self.stop()
 
     def start(self):    
-        Thread(target=self.get, args=()).start()
+        t = Thread(target=self.get, args=())
+        t.daemon = True
+        t.start()
         return self
 
     def get(self):

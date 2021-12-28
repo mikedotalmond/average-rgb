@@ -1,6 +1,7 @@
 import warnings
 import cv2
 import numpy as np
+import colorsys
 import time
 
 from threading import Thread
@@ -10,6 +11,7 @@ class DominantColours:
 
     clusters = None
     colours = None
+    hsv = None
     labels = None
     frame = None
 
@@ -29,7 +31,9 @@ class DominantColours:
 
     #
     def start(self):
-        Thread(target=self.process, args=()).start()
+        t = Thread(target=self.process, args=())
+        t.daemon = True
+        t.start()
         return self
         
     #
@@ -77,6 +81,14 @@ class DominantColours:
             time.sleep(sleep_time if sleep_time > 0 else 0)
 
 
+    # convert to hsv tuple for inputs of [r,g,b] with values in the range of 0-255.0
+    def rgbToHSV(self, input):
+        rgb = input/255.0
+        hsv = colorsys.rgb_to_hsv(rgb[0],rgb[1],rgb[2])
+        return hsv
+
+
+    #
     def buildHistogram(self, width=128, height=32):
         # labels form 0 to no. of clusters
         numLabels = np.arange(0, self.clusters + 1)
@@ -85,12 +97,15 @@ class DominantColours:
         (hist, _) = np.histogram(self.labels, bins = numLabels)
         hist = hist.astype("float")
         hist /= hist.sum()
-        
         colours = self.colours
+
         #descending order sorting as per frequency count
         colours = colours[(-hist).argsort()]
         hist = hist[(-hist).argsort()] 
-        
+
+        hsv = [self.rgbToHSV(rgb) for rgb in colours]
+
+        self.hsv = hsv
         self.colours = colours
         self.hist = hist
 
