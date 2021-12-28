@@ -29,3 +29,4 @@ sudo apt-get install libatlas-base-dev
 pip3 install --user -U numpy
 pip3 install --user -U scikit-learn
 pip3 install --user -U python-osc
+pip3 install --user -U pytmi
