@@ -12,6 +12,7 @@ from Threaded.LifeCycle import LifeCycle
 from dominant_colours import DominantColours
 from feature_tracking import FeatureTracking
 from audio_driver import AudioDriver
+from twitch_chat import TwitchChat
 
 import argparse
 
@@ -97,6 +98,8 @@ def parse_source(s):
     except ValueError:
         return s
 
+
+
 #
 #
 def thread_handler():
@@ -136,6 +139,13 @@ def thread_handler():
 
     soundtrack = AudioDriver()
     # soundtrack = AudioDriver(osc_ip="192.168.1.118")
+
+    def on_chat_message(data):
+        print("on_chat_message", data)
+        # message data is a tuple containing...
+        name, text, is_broadcaster, is_mod, is_sub = data
+    
+    twitch_chat = TwitchChat(channel_name="bubbletelevision", on_message = on_chat_message).start()
 
     #
     #
@@ -195,7 +205,7 @@ def thread_handler():
         #
         feature_tracking.set_frame(cropped)
 
-        # TODO: soundtrack...
+        # soundtrack...
         soundtrack.update(
             popped = bubble_life.dead, 
             dominant_colours = {'colours':dominant_colours.hsv, 'weights':dominant_colours.hist}, 
@@ -229,6 +239,7 @@ def thread_handler():
     rgb_test.stop()
     dominant_colours.stop()
     feature_tracking.stop()   
+    twitch_chat.stop()
     cv2.destroyAllWindows()
 
 
