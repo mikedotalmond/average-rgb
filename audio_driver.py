@@ -69,6 +69,7 @@ class AudioDriver:
         ##
         if popped and not self.didPop:
             print("bubble popped")
+            # TODO: record last bubble lifetime here
             self.didPop = True
             self._trigger(name='state/is_popped', parameters=[1])
         elif self.didPop and not popped:
@@ -79,12 +80,13 @@ class AudioDriver:
         ##
         if dominant_colours is not None:
             # remap h,s,v - h 0->11, s,v=0-255
-            c = np.array(np.rint(np.multiply(dominant_colours['colours'], [12,255,255])), dtype=np.uint8)
+            c = dominant_colours['colours'] 
             w = dominant_colours['weights']
 
             if self.colours is not None:
-                # only trigger sending update data when the remapped colour states change
-                if not np.array_equal(self.colours, c):
+                colour_change_precision = [12, 127, 127] #h/s/v
+                # only trigger sending update data when the rounded (reduced precision) colour states change
+                if not self._arrays_equal_with_precision(self.colours, c, colour_change_precision):
                     for i in range(len(c)):
                         # sending colour parameters of [h,s,v,weight]
                         self._trigger(f'state/colour/{i}', parameters = np.append(c[i], w[i]))
@@ -93,7 +95,7 @@ class AudioDriver:
                     # difference between max and min of all h,s,v values
                     variance = np.max(c,axis=0) - np.min(c,axis=0)
                     self._trigger('state/colour/variance', parameters = variance.tolist())
-            else:        
+            else:
                 self.colours = c
             
             self.colours_weights = w
@@ -112,7 +114,8 @@ class AudioDriver:
             #             self._trigger("state/position/median", parameters = med.tolist())
 
             if self.velocities is not None:
-                if not np.array_equal(self.velocities, v):
+                velocity_change_precision = [127, 127]
+                if not self._arrays_equal_with_precision(self.velocities, v, velocity_change_precision):
                     if len(v) > 0:
                         self._trigger("state/velocity/min", parameters = np.min(v,axis=0).tolist())
                         self._trigger("state/velocity/max", parameters = np.max(v,axis=0).tolist())
@@ -136,3 +139,10 @@ class AudioDriver:
         # print("osc", name, parameters)
         self.sender.send_message(f'/{name}', parameters)
     
+    #
+    def _arrays_equal_with_precision(self, a, b, precisions):
+        if len(a) != len(b): return False
+        if len(a) == 0 and len(b) == 0: return True
+        aa = np.array(np.rint(np.multiply(a, precisions)), dtype=np.uint8)
+        bb = np.array(np.rint(np.multiply(b, precisions)), dtype=np.uint8)
+        return np.array_equal(aa, bb)

@@ -100,8 +100,8 @@ class FeatureTracking:
         self.last_point_count = 0
 
         # we periodically pick new features to track
-        self.new_feature_time_min = 1.0
-        self.new_feature_time_max = 5.0
+        self.new_feature_time_min = 2.0
+        self.new_feature_time_max = 4.0
         self.next_feature_time = self.get_next_feature_time()
 
         while not self.stopped:

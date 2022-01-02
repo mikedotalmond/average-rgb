@@ -2,9 +2,9 @@ import asyncio
 import threading
 import pytmi
 
-
 class TwitchChat:
-    
+
+    loop = None
     channel_name: str = None
     client: pytmi.TmiClient = None
     current_message: pytmi.TmiMessage = None
@@ -25,16 +25,18 @@ class TwitchChat:
     #
     def stop(self):
         self.stopped = True
+        if self.loop is not None:
+            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+            self.loop.close()
+            del self.loop
 
     #
     def _start_loop(self):
-        loop = asyncio.new_event_loop()
+        self.loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(self._run())
+            self.loop.run_until_complete(self._run())
         finally:
-            loop.run_until_complete(loop.shutdown_asyncgens())  # see: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.shutdown_asyncgens
-            loop.close()
-            self.stopped = True
+            self.stop()
 
     #
     async def _run(self):

@@ -35,6 +35,7 @@ parser.add_argument('-source', default=0, required=False, help="String location 
 parser.add_argument('-downscale-amount', type=int, default=12, required=False, help="Amount the media source is downscaled by before processing.")
 
 parser.add_argument('-debug', type=str, default='yes', choices=['yes','no'], required=False)
+parser.add_argument('-simulated-pop-chance', type=float, default=0.0, required=False, help="set to >0 and <1 to simulate bubble pop events - eg 0.001 - Useful for test/debug and if the source is prerecorded.")
 parser.add_argument('-print-timings', type=str, default='no', choices=['yes','no'], required=False)
 parser.add_argument('-fullscreen', type=str, default='no', choices=['yes','no'], required=False)
 args = parser.parse_args()
@@ -42,7 +43,8 @@ args = parser.parse_args()
 # globals
 # simulate a bubble pop event by returning empty frames during development / debugging
 bubble_pop_duration = 4.0
-bubble_pop_chance = 0.000#5
+
+bubble_pop_chance = float(args.simulated_pop_chance) # eg 0.001
 showing_empty_frame_time = -1.0
 showing_empty_frame = False
 empty_frame = np.zeros((1080, 1920, 3), np.uint8)
@@ -132,7 +134,7 @@ def thread_handler():
     # 
     feature_tracking = FeatureTracking(
         max_features = 9,
-        process_fps = video_getter.frame_rate/2,
+        process_fps = video_getter.frame_rate,
         debug = debug,
         print_timings = print_timings
     ).start()
