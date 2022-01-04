@@ -24,10 +24,11 @@ class VideoShow:
                 cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
             
             cv2.imshow(window_name, self.frame)
-            time.sleep(self.frame_delay)
 
             if cv2.waitKey(1) == ord("q"):
                 self.stopped = True
+                
+            time.sleep(self.frame_delay-0.001)
 
     def stop(self):
         self.stopped = True
