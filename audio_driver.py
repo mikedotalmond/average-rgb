@@ -71,11 +71,11 @@ class AudioDriver:
             print("bubble popped")
             # TODO: record last bubble lifetime here
             self.didPop = True
-            self._trigger(name='state/is_popped', parameters=[1])
+            self._trigger('state/is_popped', [1])
         elif self.didPop and not popped:
             print("new bubble")
             self.didPop = False
-            self._trigger(name='state/is_popped', parameters=[0])
+            self._trigger('state/is_popped', [0])
         #
         ##
         if dominant_colours is not None:
@@ -84,17 +84,28 @@ class AudioDriver:
             w = dominant_colours['weights']
 
             if self.colours is not None:
-                colour_change_precision = [12, 127, 127] #h/s/v
+                colour_change_precision = [12, 64, 64] #h/s/v
                 # only trigger sending update data when the rounded (reduced precision) colour states change
                 if not self._arrays_equal_with_precision(self.colours, c, colour_change_precision):
+                    colours = []
                     for i in range(len(c)):
                         # sending colour parameters of [h,s,v,weight]
-                        self._trigger(f'state/colour/{i}', parameters = np.append(c[i], w[i]))
+                        colours = colours + np.append(c[i], w[i]).tolist()
                         self.colours[i] = c[i]
                     
-                    # difference between max and min of all h,s,v values
-                    variance = np.max(c,axis=0) - np.min(c,axis=0)
-                    self._trigger('state/colour/variance', parameters = variance.tolist())
+                    # variance - difference between max and min of all h,s,v values
+                    c_min = np.min(c, axis=0)
+                    c_max = np.max(c, axis=0)
+                    variance = c_max - c_min
+
+                    # since hue is cyclic the min/max needs to take that into account and wrap around
+                    if variance[0] > 0.5:
+                        v2 = (c_min[0] + 1.0) - c_max[0]
+                        if v2 < variance[0]:
+                            variance[0] = v2
+                    
+                    self._trigger('state/colours', colours + variance.tolist())
+            
             else:
                 self.colours = c
             
@@ -102,27 +113,16 @@ class AudioDriver:
         #
         ##
         if tracked_features is not None:
-            # p = tracked_features['points']
             v = tracked_features['velocities']
-
-            # if self.points is not None:
-            #     if not np.array_equal(self.points, p):
-            #         if len(p) > 0:
-            #             med = np.median(p,axis=0)
-            #             variance = np.max(p,axis=0) - np.min(p,axis=0)
-            #             self._trigger("state/position/variance", parameters = variance.tolist())
-            #             self._trigger("state/position/median", parameters = med.tolist())
-
             if self.velocities is not None:
-                velocity_change_precision = [127, 127]
+                velocity_change_precision = [64, 64]
                 if not self._arrays_equal_with_precision(self.velocities, v, velocity_change_precision):
                     if len(v) > 0:
-                        self._trigger("state/velocity/min", parameters = np.min(v,axis=0).tolist())
-                        self._trigger("state/velocity/max", parameters = np.max(v,axis=0).tolist())
-                        self._trigger("state/velocity/median", parameters = np.median(v,axis=0).tolist())
-
-            # self.points = p
-            self.velocities = v
+                        # send both max and average x,y velocity lists, concatenated into a single list of [x,y,x,y]
+                        self._trigger("state/velocity", np.max(v,axis=0).tolist() + np.average(v,axis=0).tolist())
+                    self.velocities = v
+            else:
+                self.velocities = v
             
         #
         ##
@@ -130,14 +130,13 @@ class AudioDriver:
         if t - self.last_tick > self.tick_time:
             self.last_tick = t
             # occasionally resend popped state so sonic-pi is updated if started/stopped out of sequence
-            self._trigger(name='state/is_popped', parameters=[1 if self.didPop else 0])
+            self._trigger('state/is_popped', [1 if self.didPop else 0])
 
         
 
-        
-    def _trigger(self, name='test', parameters=[]):
-        # print("osc", name, parameters)
-        self.sender.send_message(f'/{name}', parameters)
+    #
+    def _trigger(self, name="test", args=[]):
+        self.sender.send_message(f'/{name}', args)
     
     #
     def _arrays_equal_with_precision(self, a, b, precisions):
